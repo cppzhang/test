@@ -1,0 +1,364 @@
+package com.zhang.main;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.Random;
+
+/**
+ * 游戏入口主类
+ *
+ * @author 张鹏
+ * @version v1.0
+ * @createTime 2021年6月1日-6月2日
+ */
+public class Main {
+    public static void main(String[] args) {
+        GameDto gameDto = new GameDto();//创建游戏唯一数据对象
+        JPanelGame panel = new JPanelGame(gameDto);//创建面板对象
+        GameControl gameControl = new GameControl(panel);//创建控制器对象
+        panel.setGameControl(gameControl);//面板设置监听
+        new JFrameGame(panel);//创建窗口对象
+    }
+}
+
+/**
+ * 窗口类，游戏窗口真实大小612*408
+ */
+class JFrameGame extends JFrame {
+	private static final long serialVersionUID = 1L;
+
+	public JFrameGame(JPanelGame panelGame) {
+        setTitle("扫雷"); //设置标题
+        setDefaultCloseOperation(3);//设置窗口关闭
+        setSize(626, 420); // 设置窗口大小与真实大小有误差
+        setResizable(false);// 不允许用户改变窗口大小
+        Toolkit toolkit = Toolkit.getDefaultToolkit();// 获得显示器screen y轴像素提高一点美观
+        Dimension screen = toolkit.getScreenSize();
+        int x = screen.width - getWidth() >> 1;//后位移设置窗口居中
+        int y = (screen.height - getHeight() >> 1) - 32;
+        setLocation(x, y);
+        setContentPane(panelGame);//设置Panel 面板
+        setVisible(true);// 设置可见 可见性一定要后设置
+    }
+}
+
+/**
+ * 游戏面板类，绘图
+ */
+class JPanelGame extends JPanel {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	int start = 1;//判断游戏输赢,1为游戏未输
+    GameDto gameDto;//游戏数据
+
+    /**
+     * 获取相应图片函数
+     *
+     * @param n 对应的数子拼接图片
+     * @return 返回Img对象
+     */
+    static Image getImg(int n) {
+        return new ImageIcon("img/" + n + ".jpg").getImage();
+    }
+
+    /**
+     * 面板构造器
+     *
+     * @param gameDto 将游戏数据注入到面板
+     */
+    JPanelGame(GameDto gameDto) {
+        this.gameDto = gameDto;
+        JButton j = new JButton(new ImageIcon("img/0.png"));//添加开始游戏图片按钮
+        j.addActionListener(new Action(this));//添加按钮监听
+        this.setLayout(null);//清除布局，否则设置大小无效
+        j.setBounds(298, 15, 20, 20);//设置按钮大小
+        this.add(j);
+    }
+
+    /**
+     * 添加鼠标控制器
+     *
+     * @param control 鼠标控制器
+     */
+    void setGameControl(GameControl control) {
+        addMouseListener(control);
+    }
+
+    /**
+     * 重写父类绘图方法
+     *
+     * @param g 画笔
+     */
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);//调用父类构造器，不调用会出问题
+        int[][] map = gameDto.getMap();//得到地图数组，遍历(1，1)-(30,16)数组
+        for (int i = 1; i < map.length - 1; i++) {
+            for (int j = 1; j < map[i].length - 1; j++) {
+                if (map[i][j] >= 10 && map[i][j] < 20) {
+                    g.drawImage(getImg(10),
+                            5 + (i - 1) * 20, 55 + (j - 1) * 20,
+                            20, 20, null);//10-20画没有点开的格子
+                } else if (map[i][j] >= 20) {
+                    g.drawImage(getImg(21),
+                            5 + (i - 1) * 20, 55 + (j - 1) * 20,
+                            20, 20, null);//大于20画旗
+                } else {
+                    g.drawImage(getImg(map[i][j]),
+                            5 + (i - 1) * 20, 55 + (j - 1) * 20,
+                            20, 20, null);//画对应的雷和数字
+                }
+            }
+        }
+        /*
+        画游戏雷数和作者
+         */
+        g.setColor(Color.RED);
+        g.setFont(new Font("微软雅黑", Font.BOLD, 30));
+        g.drawString(String.valueOf(gameDto.LeiNums), 40, 35);
+        g.setColor(Color.GREEN);
+        g.drawString("by小吴", 480, 35);
+        this.requestFocus();//获得焦点
+    }
+}
+
+/**
+ * 重新开始按钮监听类
+ */
+class Action implements ActionListener {
+    //得到面板对象
+    JPanelGame j;
+
+    Action(JPanelGame j) {
+        this.j = j;
+    }
+
+    /**
+     * 点击按钮则游戏地图重置，start置1
+     *
+     * @param e 鼠标事件对象
+     */
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        j.gameDto.initMap();//重置地图
+        j.start = 1;//开始
+        j.repaint();//重绘
+    }
+}
+
+/**
+ * 游戏数据类
+ */
+class GameDto {
+    int[][] map = new int[32][18];//初始化游戏数组
+    Random random = new Random();//随机数种子
+    int LeiNums;//雷数量
+
+    GameDto() {
+        initMap();
+    }//构造器初始化一个数组
+
+    int[][] getMap() {
+        return map;
+    }//获得地图数组
+
+    /**
+     * 初始化99个雷
+     */
+    void initMap() {
+        LeiNums = 99;
+
+       // map = new int[32][18];//赋值为0，节省cpu,耗费内存不可以不知道为啥
+        for (int i = 1; i < map.length - 1; i++) {
+            for (int j = 1; j < map[i].length - 1; j++) {
+                    map[i][j] = 0;
+                }
+            }
+            int count = 0;
+            while (count < LeiNums) {
+                int k = random.nextInt(30) + 1;
+                int l = random.nextInt(16) + 1;
+                if (map[k][l] != 19) {
+                    map[k][l] = 19;
+                    count++;
+                }
+            }
+            for (int i = 1; i < map.length - 1; i++) {
+                for (int j = 1; j < map[i].length - 1; j++) {
+                    if (map[i][j] != 19) {
+                        map[i][j] = leiNums(i, j);
+                    }
+
+                }
+            }//不是雷则加10,方便画出未点开的格子
+        }
+
+        /**
+         * 判断周围雷的数目
+         *
+         * @param i
+         * @param j
+         * @return
+         */
+        int leiNums ( int i, int j){
+            int leiNum = 0;
+            for (int n = i - 1; n <= i + 1; n++) {
+                for (int m = j - 1; m <= j + 1; m++) {
+                    if (map[n][m] == 19)
+                        leiNum++;
+                }
+            }
+            return leiNum + 10;
+        }
+
+
+    }
+
+    /**
+     * 游戏鼠标控制类
+     */
+    class GameControl extends MouseAdapter {
+        JPanelGame panel;//面板
+        int[][] map;//方便复用变量
+        boolean flag1 = false;//用于判断左键是否松开
+        boolean flag2 = false;//用于判断右键是否松开
+
+        GameControl(JPanelGame panel) {
+            this.panel = panel;
+            this.map = panel.gameDto.getMap();
+        }
+
+        //游戏失败，显示所有雷,start置0
+        void showBomb() {
+            for (int i = 1; i < map.length - 1; i++) {
+                for (int j = 1; j < map[i].length - 1; j++) {
+                    if (map[i][j] == 19)
+                        map[i][j] -= 10;
+                    else if(map[i][j] == 38){
+                        map[i][j] -= 29;
+                    }
+                }
+            }
+            panel.start = 0;
+        }
+
+        //是否可以递归展开
+        void canOpen(int i, int j) {
+            map[i][j] -= 10;
+            for (int k = i - 1; k <= i + 1; k++) {
+                for (int l = j - 1; l <= j + 1; l++) {
+                    if ((k == i && l == j)) {
+                        continue;//如果是格子自己，则不需要判断了
+                    }
+                    if (map[k][l] > 10 && map[k][l] < 20) {
+                        map[k][l] -= 10;//普通数字打开
+                    } else if (map[k][l] == 10) {
+                        canOpen(k, l);//是0继续递归
+                    }
+                }
+            }
+        }
+
+        /**
+         * 单击加双击判断展开
+         *
+         * @param n
+         * @param m
+         * @return
+         */
+        boolean isTrue(int n, int m) {
+            if (flag1 && flag2) {//如果是则进入判断，不是返回继续判断是单击还是双击
+                if (map[n][m] < 10) {//如果是数字
+                    int count = 0;
+                    for (int i = n - 1; i <= n + 1; i++) {
+                        for (int j = m - 1; j <= m + 1; j++) {
+                            if (map[i][j] >= 20) {
+                                count++;
+                            }
+                        }
+                    }
+                    //如果旗数量等于雷数量，则判断是否递归
+                    if (count == map[n][m]) {
+                        for (int i = n - 1; i <= n + 1; i++) {
+                            for (int j = m - 1; j <= m + 1; j++) {
+                                if (i == n && j == m) {
+                                    continue;
+                                }
+                                if (map[i][j] == 19) {
+                                    showBomb();
+                                } else {
+                                    if (map[i][j] == 10) {
+                                        canOpen(i, j);
+                                    } else if (map[i][j] > 10 && map[i][j] < 20) {
+                                        map[i][j] -= 10;
+                                    }
+
+                                }
+                            }
+                        }
+                    }
+
+                }
+                panel.repaint();
+                return true;
+            }
+
+            return false;
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            if (panel.start == 0)//如果游戏失败，则点击无效
+                return;
+            int n = (e.getX() - 5) / 20 + 1;//得到鼠标点击相对面板对应的数组横标
+            int m = (e.getY() - 55) / 20 + 1;//得到鼠标点击相对面板对应的数组纵标
+            int nm = map[n][m];//得到当前数组元素值
+            if (e.getButton() == 1) {//如果是单击
+                flag1 = true;//鼠标按下
+                if (isTrue(n, m)) {//如果是单击加双击结束方法
+                    return;
+                }
+                if (nm == 10) {
+                    canOpen(n, m);//如果数字是0，则递归打开所有周围无雷的格子
+                } else if (map[n][m] > 10 && map[n][m] < 19) {
+                    map[n][m] -= 10;//如果是数字不是0，则打开即可
+                } else if (map[n][m] == 19) {
+                    showBomb();//如果是雷，显示所有雷，游戏失败
+                }
+            } else {//如果是双击
+                flag2 = true;
+                if (isTrue(n, m)) {//如果是单击加双击结束方法
+                    return;
+                }
+                if (map[n][m] >= 10 && map[n][m] < 20) {
+                    map[n][m] *= 2;//当前数组乘2
+                    panel.gameDto.LeiNums--;//雷减少
+                } else if (map[n][m] >= 20) {
+                    map[n][m] /= 2;//当前数组除2
+                    panel.gameDto.LeiNums++;//雷恢复
+                }
+            }
+            panel.repaint();//重绘
+        }
+
+        /**
+         * 判断左键右键是否松开，松开则false
+         *
+         * @param e
+         */
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            if (e.getButton() == 1)
+                flag1 = false;
+            else flag2 = false;
+        }
+    }
+
+
+
